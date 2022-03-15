@@ -1,0 +1,594 @@
+---
+title: "Workshop_scrap_R"
+author: "Matt Steele"
+date: '2022-03-15'
+output: html_document
+---
+
+## Get and Set Working Directory ------------------------------------
+
+```{r echo=FALSE}
+
+# get working directory
+
+  getwd()
+
+# set working directory
+  
+  setwd()
+  setwd("~/RWorkshop Development/workshop_scrape_twitter_R")
+  
+# you can set wd by using menu > session > set working directory > choose directory
+
+
+```
+
+=========================================================================
+
+## Twitter API -------------------------------------------------------
+
+    Documentation: https://developer.twitter.com/en/docs/twitter-api
+    Dashboard: https://developer.twitter.com/en/portal/dashboard
+
+
+==========================================================================
+
+## Packages -----------------------------------------------------------
+
+    ## Packages that you will need to have installed for this workshop
+
+```{r}
+
+install.packages("tidyverse")
+install.packages("rtweet")
+install.packages("ellipsis")
+install.packages("pillar")
+install.packages("tidygeocoder")
+install.packages("hrbrthemes")
+install.packages("glue")
+install.packages("tidytext")
+install.packages("wordcloud2")
+install.packages("lubridate")
+install.packages("textdata")
+
+
+```
+
+    ## Packages that you will need to load for this workshop
+
+```{r message=FALSE}
+
+library(tidyverse)
+library(rtweet)
+library(pillar)
+library(tidygeocoder)
+library(hrbrthemes)
+library(glue)
+library(tidytext)
+library(wordcloud2)
+library(lubridate)
+library(textdata)
+
+```
+
+=====================================================================================
+
+## Rtweet by ROpenSci ----------------------------------------------------------------
+
+    Developers: https://ropensci.org/
+    Documentation: https://docs.ropensci.org/rtweet/
+    
+======================================================================================
+
+## Exportating Data
+
+    
+```{r}
+
+help("write_delim") # readr package via tidyverse
+
+write_csv(pk_following_info, "pkfollowers.csv")
+
+```
+    
+    You can extract data using R and perform analysis and visualization functions in:
+      - R
+      - SAS
+      - Python
+      - STATA
+      - SPSS
+
+===========================================================================
+
+## Create a Script to have R scrape Twitter at scheduled times  ---------------------------------------------------
+
+If you're collecting data into the future, you may want to set your twitter API search to run on a schedule. 
+
+Documentation and R Scripts
+
+- Windows:  https://github.com/bnosac/taskscheduleR
+- Linux: https://github.com/bnosac/cronR#cronr
+
+```{r message=FALSE, warning=FALSE}
+
+install.packages("taskscheduleR")
+library(taskscheduleR)
+
+```
+
+===========================================================================
+
+# Part I - Search Twitter ----------------------------------------------
+
+## Function: search_tweets() ----------------------------------------------
+
+    search twitter for tweets with search term(s) in them
+    
+    Boolean Operators
+    
+      AND operator (&)
+      NOT operator (!) 
+      OR operator (|)
+      
+```{r}
+
+    help("search_tweets") # from the rtweet package
+
+```
+      
+```{r}
+
+ukraine_tweets <- search_tweets("ukraine", n=500, include_rts = F)
+  View(ukraine_tweets)
+  
+#Add BOOLEAN searches
+  
+ukraineWarTweets <- search_tweets(q = "ukraine & (war | conflict | invasion)", n = 3200, include_rts = F)
+  ukraineWarTweets
+  
+# Search for mentions(@username) or hashtags(#hashtag)
+  
+navalny_mentioned <- search_tweets("@navalny", n = 3200, include_rts = F)
+  navalny_mentioned
+
+
+```
+
+## Exercise - Search twitter for a term ------------------------------------------------------
+
+```{r}
+
+#Try it out for yourself - create an object and search twitter for a topic using search_tweets()
+
+```
+
+## Function: search_users()
+
+        # Search Twitter for usernames with search term(s) in them
+        
+
+```{r}
+
+help("search_users")
+
+```
+
+```{r}
+
+freedom_names <- search_users("freedom", n = 1000)
+  freedom_names
+  
+```
+
+
+=================================================================================
+
+
+# Part II - Get followers of the account and accounts that are following an account -------
+
+## Funtion: get_friends() -------------------------------------------------------
+
+    locate an account and return who they are following
+    
+```{r}
+
+    help("get_friends") # from the rtweet package
+
+```
+    
+```{r}
+
+# by name #
+
+wvcbp_following <- get_friends("WVCBP", n = 2000)
+  wvcbp_following
+
+# by ID - https://tweeterid.com/ #
+
+pk_following <- get_friends(users = "1221959101")
+  pk_following
+
+
+```
+
+
+## Function: get_followers() -------------------------------------------------------------------------
+
+    looks at an account and sees who is following it
+    
+```{r}
+
+help("get_followers") # from the rtweet package
+
+```
+
+    
+```{r}
+
+# by name #
+
+db_followers <- get_followers(user = 'doughboyspod')
+  db_followers
+
+# by ID - https://tweeterid.com/ #
+
+pk_followers <- get_followers("1221959101", n = 5000) # we are going to limit for time sake
+  pk_followers
+
+```
+
+## Function: lookup_users() -------------------------------------------------------------- 
+      
+      used with get_friends() to get more information on accounts being followed 
+      
+```{r}
+
+help("lookup_users") # from the rtweet package
+
+```
+      
+```{r}
+
+# by following information
+
+pk_following_info <- lookup_users(pk_following$user_id)
+  pk_following_info
+
+```
+  
+```{r}
+
+# by followers information
+
+pk_followers_info <- lookup_users(pk_followers$user_id)
+  pk_followers_info
+
+```
+
+## Exercise - Get either the followers or users of a timeline ---------------------------------------
+    
+```{r}
+
+# Create an object and find out an account's followers or friends get_followers() or get_friends()
+
+
+```
+
+```{r}
+
+# Create an object and find out more about the followers/friends using lookup_users()
+```
+
+=============================================================================================
+
+## Part III - Search Tweet Information ----------------------------------------------------
+
+
+## Function: get_retweeters() --------------------------------------------------------------
+
+      # Get the user_id of accounts that have retweeted a post
+
+```{r}
+
+help("get_retweeters") # from rtweet package
+
+chicagoRiver_rters <- get_retweeters("1503324407581843457")
+  chicagoRiver_rters
+  
+
+about_chicagoRiver_rters <- lookup_users(chicagoRiver_rters$user_id)
+  about_chicagoRiver_rters
+
+```
+
+
+## Function: get_retweets() ---------------------------------------------------------------
+
+        # Return information about the account that has retweeted a post. ~lookup_users()
+
+```{r}
+
+help("get_retweets") # from rtweet package
+
+# The status ID of a tweet is in it's URL
+
+# https://twitter.com/TVsCarlKinsella/status/1503324407581843457
+
+
+```
+
+```{r}
+
+chicagoRiver_rt <- get_retweets("1503324407581843457")
+  chicagoRiver_rt
+
+```
+
+
+=============================================================================================
+
+## Part IV - Search User Information ------------------------------------------------------
+
+
+## Function: get_favorites() ---------------------------------------------------------------
+
+        # Get information on tweets that an account has favorited
+
+```{r}
+
+help("get_favorites") # from rtweet package
+
+```
+
+```{r}
+
+dr_favorites <- get_favorites("david_j_roth", n = 3000)
+  dr_favorites
+
+```
+
+
+## Function: get_timeline() ---------------------------------------------------------------
+
+       # Get most recent post from a user's timeline
+
+```{r}
+
+help("get_timeline") # from the rtweet package
+
+```
+
+```{r}
+
+# Phil Kabler's timeline 
+
+pk_tln <- get_timeline(user = 'PhilKabler', n = 3200)
+  pk_tln
+
+```
+
+    # Variables: see the variables in the data fram
+    
+```{r}
+
+help("glimpse") # from the dplyr package
+
+glimpse(pk_tln)
+
+```
+
+    # Plotting: what are the mid/max values for date
+    
+```{r}
+
+pk_tln %>% 
+  summarise(min(created_at), max(created_at))
+
+```
+
+## Function: ts_plot() -----------------------------------------------------------------
+
+      allows you to plot the frequency of tweets and specify the time interval
+      
+      # Choose the Date format using the by function
+        by = "secs", 
+             "mins", 
+             "hours", 
+             "days", 
+             "weeks", 
+             "months"
+             "years"
+      
+```{r}
+
+## quick clean: change dttm to date
+
+pk_tln$created_at <- as.Date(pk_tln$created_at) 
+
+ts_plot()
+
+```
+
+```{r}
+
+help("ts_plot") # from rwteet package
+
+```
+
+    # Visualize the data
+
+```{r}
+
+pk_tln %>% 
+  dplyr::group_by(screen_name) %>%
+  ts_plot("months", trim = 1L) + # choose by format
+    ggplot2::geom_point() + geom_smooth() +
+    ggplot2::labs(x = NULL, y= NULL, 
+      title = "Frequency of Phil Kabler Tweets",
+      subtitle = paste0(format(min(pk_tln$created_at), "%d %B %Y"),
+                        " to ", format(max(pk_tln$created_at),"%d %B %Y")),
+      caption = "Source: Data collected from Twitter's REST API via rtweet") +
+    scale_x_datetime(date_labels = "%B", date_breaks = "1 month", minor_breaks = "1 week") +
+    ggplot2::theme_minimal()
+
+```
+
+      # Get a "fancy" chart
+        
+```{r}
+
+pk_tln_viz <- pk_tln %>% 
+  dplyr::group_by(screen_name) %>%
+  ts_plot("days", trim = 1L) + # change months to days
+    ggplot2::geom_point(color = "coral") + # add some color
+    geom_line(color = "darkseagreen") + # add some color
+    hrbrthemes::theme_ipsum(grid = "Y") + # use themes from hrbr package
+    ggplot2::theme(legend.position = "bottom",  #change text look, position and appearance
+      legend.title = ggplot2::element_blank(), 
+      plot.title = ggplot2::element_text(face = "bold", size = 28, color = "coral")) + 
+    ggplot2::labs(x = NULL, y= NULL, 
+      title = "Frequency of Phil Kabler Tweets",
+      subtitle = paste0(format(min(pk_tln$created_at), "%d %B %Y"),
+                        " to ", format(max(pk_tln$created_at),"%d %B %Y")),
+      caption = "Source: Data collected from Twitter's REST API via rtweet") +
+    scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + # change date lables
+    geom_smooth(color = "skyblue", se = 1)
+
+ggsave(pk_tln_viz, filename = "pk_tln_viz.png")
+
+```
+
+
+## Exercise - Plot a timeline ---------------------------------------
+    
+```{r}
+
+# Create a timeline for the account @dril (16298441)
+
+
+
+
+# Find the min and max values
+
+
+
+
+# Plot it
+
+
+
+
+# Save it
+
+
+ggsave(filename = "frq_tweets_dril.png")
+
+```
+
+
+====================================================================
+
+## Part V - Get trending information ------------------------------
+
+## Function: get_trends() ------------------------------------
+
+    # Search for trends on twitter in a geographic area
+    
+```{r}
+
+help("get_trends") # from rtweets package
+
+```
+
+```{r}
+# by name
+
+pitt_trend <- get_trends("Pittsburgh")
+  pitt_trend
+
+# by WOEID -> https://www.findmecity.com/index.html
+
+italy_trend <- get_trends(woeid = 23424853)
+  italy_trend
+
+# by LAT and LNG
+
+ukraine_trends <- get_trends(lat = 48.3794 , lng = 31.1656)
+  ukraine_trends
+
+```
+
+## Visualize locations using tidygeocoder ----------------------------
+
+```{r}
+
+library(tidygeocoder)
+
+```
+
+```{r}
+
+help("tidygeocoder")
+
+```
+
+## Function: geocode() ---------------------------------------------------------
+
+    # retrieve the lat and lng
+    
+```{r}
+
+help("geocode") # from tidygeocoder package
+
+```
+
+```{r}
+
+# Retrieve timeline of the governor of West Virginia
+
+wvGovernor_timeline <- get_timeline("WVGovernor", n = 6000)
+  glimpse(wvGovernor_timeline) # place name variable
+  
+
+# Create a data frame of locations that the account has mentioned and get the coordinates
+    
+wvGovernor_places <- wvGovernor_timeline %>% 
+  drop_na(place_name) %>% # remove NAs
+  select(place_name:bbox_coords) %>% # select only variable from place_name to bbox_coords
+  distinct() %>% # dplyr function that only select unique/distinct rows from a data frame
+  mutate(addr = glue::glue("{place_full_name}, {country}")) %>%  # create a new variable using address
+  tidygeocoder::geocode(addr, method = "osm") 
+
+glimpse(wvGovernor_places)
+
+```
+
+## Visulize the data frame using maps from GGplot2 
+
+
+```{r}
+
+help("borders") # from ggplot2 package
+help('coord_sf') # from ggplot2
+help("geom_label_repel") # from ggrepel as part of ggplot2 package
+
+```
+
+```{r}
+
+wvGovernor_places %>% 
+  distinct() %>% 
+  drop_na(lat) %>% 
+  ggplot(aes(long, lat), color="grey99") +
+  borders("state") +
+  coord_sf (xlim = c(-85, -75), ylim = c(35, 42)) +
+  geom_point(color = "goldenrod") +
+  ggrepel::geom_label_repel(aes(label = place_full_name), 
+                            segment.color = "goldenrod", segment.size = 1,
+                            color = "navy",
+                            max.overlaps = 20) + 
+  theme_void()
+
+```
+
+

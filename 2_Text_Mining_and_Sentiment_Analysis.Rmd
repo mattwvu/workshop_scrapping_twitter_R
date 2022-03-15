@@ -1,0 +1,347 @@
+---
+title: "Workshop_text_mining_sentiment_analysis_R"
+author: "Matt Steele"
+date: '2022-03-15'
+output: html_document
+---
+
+## Get and Set Working Directory ------------------------------------
+
+```{r echo=FALSE}
+
+# get working directory
+
+  getwd()
+
+# set working directory
+  
+  setwd()
+  setwd("~/RWorkshop Development/workshop_scrape_twitter_R")
+  
+# you can set wd by using menu > session > set working directory > choose directory
+
+
+```
+
+==============================================================================
+
+## Text and Sentiment Analysis ----------------------------------------------
+
+Suggested Reading Text Mining with R:
+https://wvu.idm.oclc.org/login?url=https://discovery.ebsco.com/linkprocessor/plink?id=7e33d30c-4f54-3888-8705-b0b00934ca8a
+
+Suggested Packages:
+Tidytext: https://cran.r-project.org/web/packages/tidytext/tidytext.pdf
+
+Exercises to try on your own:
+https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html
+
+===============================================================================
+
+## Packages that you will need to have installed for this workshop
+
+```{r message=FALSE, warning=FALSE}
+
+install.packages("tidyverse")
+install.packages("rtweet")
+install.packages("tidytext")
+install.packages("wordcloud2")
+install.packages("lubridate")
+install.packages("textdata")
+
+
+```
+
+
+## Packages that you will need to load for this workshop
+
+```{r message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(rtweet)
+library(tidytext)
+library(wordcloud2)
+library(lubridate)
+library(textdata)
+
+```
+
+===============================================================================
+
+## Part I - Tokenizing Data ----------------------------------------------------
+
+## Function: count() ---------------------------------------------------------
+
+      # allows you to count the values of occurences within a variable
+      
+```{r}
+
+help("count") # from dplyr package
+
+```
+
+```{r}
+
+leaders <- search_tweets("putin | zelensky", n = 6000, include_rts = F)
+  leaders
+  
+# Who is tweeting the most
+  
+leaders %>% 
+  count(screen_name, sort = TRUE) # quick check to see what screen_name has tweeted the most
+
+# Create an variable that segments out a user's tweets
+
+tweets_by_tweeter <- leaders %>% 
+  group_by(screen_name) %>% 
+  mutate(line = row_number()) %>% # each tweet by a screen_name gets a +1 to line
+  ungroup() %>% # removing the grouping of the screen_name variable
+  select(text, screen_name, line) %>% #select only variables for new data frame
+  arrange(-line) # arrange the data fram by line descending
+
+tweets_by_tweeter
+
+
+```
+
+## Function: unnest_tokens() --------------------------------------------------
+
+      # makes a data frame of all the words in our tweets
+      
+```{r}
+
+help("unnest_tokens") # from the tidytext package
+
+```
+
+```{r}
+
+ldrs_tokenized <- tweets_by_tweeter %>% 
+  unnest_tokens(word, text, token="tweets") # tokenizing the text blocks
+
+  ldrs_tokenized
+  
+    # token = "tweets" -- keeps #, @, and URLS
+    # token = "words" - removes them
+
+ldrs_tokenized_words <- tweets_by_tweeter %>% 
+  unnest_tokens(word, text, token="words")
+
+  ldrs_tokenized_words
+
+```
+
+===============================================================================
+
+## Part II - Cleaning Data with Stop Words -----------------------------------
+
+
+## Operater: %in% -----------------------------------------------------------
+
+    # operator for including/excluding specified values
+  
+    # Logical Operators
+        AND operator (&):
+        NOT operator (!): 
+        OR operator (|): 
+        EQUAL operator (==):
+        LESS THAN operator (>):
+        MORE THAN operator (<):
+
+## Built-in Data-Frame: stop_words -------------------------------------------
+
+
+```{r}
+
+help("stop_words") # from standard R
+help("stopwordslangs") # from rtweet package
+
+stop_words
+stopwordslangs
+
+```
+
+## Function: str_detect() ------------------------------------------------------------
+
+      # detect if a value exists in a data frame or variable
+
+```{r}
+
+help("str_detect") # from stringr as part of the tidyverse package
+
+```
+
+```{r}
+
+ldrs_tokenized
+
+# keep selected words
+
+stopwordslangs_ldrs <- stopwordslangs %>% 
+  filter(!str_detect(word, "putin")) %>% 
+  filter(!str_detect(word, "ukraine")) %>% 
+  filter(!str_detect(word, "russia"))
+
+ldrs_stopWords <- ldrs_tokenized %>% 
+  filter(!word %in% stop_words$word,
+         !word %in% str_remove_all(stop_words$word, "'"), # removed english stop words
+         str_detect(word, "[a-z]")) %>% 
+  filter(!str_detect(word, '@\\w+' )) %>% # removed username
+  filter(!str_detect(word, "#\\w+")) %>%  # removed hastag
+  filter(!str_detect(word, "https://\\w+")) %>% ## removed URLs
+  anti_join(stopwordslangs_ldrs) %>% # added stop_word dictionary for non-english words
+  mutate(word, word = recode(word, "putins" = "putin", "ucrania" = "ukraine"))
+
+ldrs_words <- ldrs_stopWords %>%
+  count(word, sort = TRUE, name = "freq")
+
+  ldrs_words
+
+```
+
+## Function: mutate-joins --------------------------------------------------------------
+
+    # add new variables to one data from matching observations in another
+    
+        inner_join(): includes all rows in x and y
+        left_join(): includes all rows in x
+        right_join(): includes all rows in y
+        full_join(): includes all rows in x or y
+        
+```{r}
+
+help("mutate-joins") # from the dplyr package
+
+```
+
+=======================================================================================================
+
+## Part III - Calculate Word Frequency -----------------------------------------
+
+## Bar Graph -------------------------------------------------------------------
+
+```{r}
+
+ldrs_words %>% 
+  slice_head(n = 15) %>% 
+  ggplot(aes(freq, fct_reorder(word, freq))) +
+  geom_col()
+
+```
+
+## Word Cloud ----------------------------------------------------------------------------------
+
+```{r}
+help("wordcloud2") # from package wordcloud2
+
+```
+
+```{r}
+
+putin_words %>% 
+  head(200) %>% 
+  wordcloud2(size = 10)
+
+```
+
+
+==============================================================================
+
+## Part IV - Sentiment Analysis ----------------------------------------------
+
+```{r}
+
+# get timeline of Phil Kabler and remove all variable except for selected
+
+pk_tln <- get_timelines("PhilKabler", n = 5000)
+  pk_tln
+  
+pk_sentiment <- pk_tln %>% select(screen_name, text, created_at)
+
+# clean the data set and tokenize the text
+
+pk_token <- pk_sentiment %>% 
+  unnest_tokens(word, text, token = "tweets") %>% 
+  filter(!word %in% stop_words$word,
+         !word %in% str_remove_all(stop_words$word, "'"), # removed english stop words
+         str_detect(word, "[a-z]")) %>% 
+  filter(!str_detect(word, '@\\w+' )) %>% # removed username
+  filter(!str_detect(word, "#\\w+")) %>%  # removed hastag
+  filter(!str_detect(word, "https://\\w+")) %>% ## removed URLs
+  filter(!str_detect(word, "^[0-9]*$")) %>%  # removed numbers
+  anti_join(stop_words) # remove stop words
+
+pk_token
+
+```
+
+
+## Built-in Data Frame: get_sentiments -----------------------------------------------
+
+      # specific sentiment lexicons
+      
+```{r}
+
+help("get_sentiments") # from the tidytext package
+
+# note there are four lexicons available - ("bing", "afinn", "loughran", "nrc")
+
+```
+
+## Bing Sentiment for positive versus negative sentiments
+
+```{r}
+
+pk_bing <- pk_token %>% inner_join(get_sentiments('bing'))
+  pk_bing 
+glimpse(pkabler_bing)
+
+# plot most frequent negative or positive words
+  
+pk_bing %>% count(screen_name, sentiment)
+
+pk_bar <- ggplot(pk_bing, aes(sentiment, fill = sentiment))
+
+pk_bar + geom_bar(show.legend = F) + 
+  labs (title = "Phil Kabler Tweets Sentiment Analysis", 
+        caption = "Data acquires using Twitter API", 
+        y = NULL,
+        x = NULL) +
+  theme_classic()
+
+
+```
+
+## Afinn Sentiment for valued sentiment
+
+```{r}
+
+pk_afinn <- pk_token %>% inner_join(get_sentiments('afinn'))
+  pk_afinn
+  
+pk_afinn_total <- pk_afinn %>% 
+  group_by(word) %>% 
+  count(word, value)
+
+pk_afinn_total <- pk_afinn_total %>% 
+  mutate(total_value = value*n) %>% 
+  arrange(-total_value)
+
+pk_afinn_total 
+
+```
+```{r}
+pk_afinn_total %>% 
+  filter(total_value > 30) %>% 
+  ggplot(aes(y = total_value, x = reorder(word, +(total_value)))) +
+  geom_col(show.legend = FALSE, fill = "darkseagreen") +
+  coord_flip() +
+  theme_classic() +
+  labs(x = NULL, 
+       y = "Total Value", 
+       title = "Phil Kabler Tweets Sentiment Value", 
+       subtitle = paste0(format(min(pk_tln$created_at), "%d %B %Y"),
+                        " to ", format(max(pk_tln$created_at),"%d %B %Y")))
+
+```
+
