@@ -296,12 +296,12 @@ pk_followers_info <- lookup_users(pk_followers$user_id)
 
 help("get_retweeters") # from rtweet package
 
-chicagoRiver_rters <- get_retweeters("1503324407581843457")
-  chicagoRiver_rters
+manchin_rters <- get_retweeters("1508438097738010624") ## https://twitter.com/Sen_JoeManchin/status/1508438097738010624
+  manchin_rters
   
 
-about_chicagoRiver_rters <- lookup_users(chicagoRiver_rters$user_id)
-  about_chicagoRiver_rters
+about_manchin_rters <- lookup_users(manchin_rters$user_id)
+  about_manchin_rters
 
 ```
 
@@ -316,15 +316,15 @@ help("get_retweets") # from rtweet package
 
 # The status ID of a tweet is in it's URL
 
-# https://twitter.com/TVsCarlKinsella/status/1503324407581843457
+# https://twitter.com/Sen_JoeManchin/status/1508438097738010624
 
 
 ```
 
 ```{r}
 
-chicagoRiver_rt <- get_retweets("1503324407581843457")
-  chicagoRiver_rt
+manchin_rt <- get_retweets("1508438097738010624")
+  manchin_rt
 
 ```
 
@@ -457,6 +457,8 @@ pk_tln_viz <- pk_tln %>%
       caption = "Source: Data collected from Twitter's REST API via rtweet") +
     scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + # change date lables
     geom_smooth(color = "skyblue", se = 1)
+
+pk_tln_viz
 
 ggsave(pk_tln_viz, filename = "pk_tln_viz.png")
 
