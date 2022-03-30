@@ -140,6 +140,9 @@ library(taskscheduleR)
 
 ukraine_tweets <- search_tweets("ukraine", n=500, include_rts = F)
   View(ukraine_tweets)
+  glimpse(ukraine_tweets)
+  
+  write_csv(ukraine_tweets, file = "ukraine_tweets.csv")
   
 #Add BOOLEAN searches
   
@@ -176,6 +179,7 @@ help("search_users")
 ```{r}
 
 freedom_names <- search_users("freedom", n = 1000)
+   freedom_names %>% arrange(-retweet_count)
   freedom_names
   
 ```
